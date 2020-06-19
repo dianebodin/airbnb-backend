@@ -18,7 +18,7 @@ cloudinary.config({
 router.post("/room/publish", isAuthenticated, async (req, res) => {
   try {
     if (req.user) {
-      if (req.fields.title && req.fields.description && req.fields.price && req.fields.location) {
+      if (req.fields.title && req.fields.description && req.fields.price && req.fields.location && req.fields.pictures && req.fields.ratingValue && req.fields.reviews) {
         if (req.fields.title.trim().length > 0 && req.fields.description.trim().length > 0 && req.fields.price > 0) { 
 
           const newRoom = new Room({
@@ -26,7 +26,10 @@ router.post("/room/publish", isAuthenticated, async (req, res) => {
             description: req.fields.description,
             price: req.fields.price,
             location: [req.fields.location.lat, req.fields.location.lng],
-            user: req.user,
+            pictures: req.fields.pictures,
+            ratingValue: req.fields.ratingValue,
+            reviews: req.fields.reviews,
+            user: req.user
           });
 
           await newRoom.save();
@@ -34,7 +37,7 @@ router.post("/room/publish", isAuthenticated, async (req, res) => {
           const u = await User.findById(req.user.id);
           u.rooms.push(newRoom.id);
           await User.findByIdAndUpdate(req.user.id, { rooms: u.rooms });
-          res.json({ id: newRoom.id, title: newRoom.title, description: newRoom.description, price: newRoom.price, email: newRoom.user.email, account: newRoom.user.account });
+          res.json(newRoom);
 
         } else return res.status(400).json({ error: "All fields must be completed correctly" });
       } else return res.status(400).json({ error: "Missing parameters" });
@@ -87,7 +90,7 @@ router.get("/rooms", async (req, res) => {
 
     } else { //pas de filtre
 
-      const r = await Room.find();
+      const r = await Room.find().populate({ path: "user", select: "account" });;
       if (r.length > 15) {
         let randomRooms = [];
         let randomNumber;
@@ -118,7 +121,7 @@ router.get("/rooms/around", async (req, res) => {
     try {
       if (!isNaN(req.query.latitude) && req.query.latitude > 0 && !isNaN(req.query.longitude) && req.query.longitude > 0) {
 
-        const r = await Room.find({ location: { $near: [req.query.latitude, req.query.longitude], $maxDistance: 0.1 } });
+        const r = await Room.find({ location: { $near: [req.query.latitude, req.query.longitude], $maxDistance: 200 } });
         return res.status(200).json(r);
 
       } else return res.status(400).json({ error: "Wrong latitude/longitude" });

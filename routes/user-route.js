@@ -44,7 +44,7 @@ router.post("/user/sign_up", async (req, res) => {
                 });
 
                 await newUser.save();
-                return res.status(200).json({ token: newUser.token, account: newUser.account });
+                return res.status(200).json({ id: newUser._id, token: newUser.token, account: newUser.account, email: newUser.email });
 
               } else return res.status(400).json({ error: "Password must contain less than 5 characters" });
             } else return res.status(400).json({ error: "Username already used" });
@@ -64,12 +64,11 @@ router.post("/user/log_in", async (req, res) => {
     if (req.fields.email && req.fields.password) {
 
       const u = await User.findOne({ email: req.fields.email });
-
       if (u) {
         if (u.hash === SHA256(req.fields.password + u.salt).toString(encBase64)) {
 
           //user connecté
-          return res.status(200).json({ token: u.token, account: u.account });
+          return res.status(200).json({ id: u._id, token: u.token, account: u.account, email: u.email });
 
         } else return res.status(400).json({ error: "Wrong password" });
       } else return res.status(404).json({ error: "Email not found" });
@@ -88,7 +87,7 @@ router.get("/user/:id", async (req, res) => {
         const u = await User.findById(req.params.id);
         if (u) {
 
-          return res.status(200).json({ id: u.id, account: u.account, rooms: u.rooms });
+          return res.status(200).json({ id: u._id, token: u.token, account: u.account, email: u.email, rooms: u.rooms });
             
         } else return res.status(404).json({ error: "User not found" });
       } else return res.status(400).json({ error: "Wrong id" });
@@ -113,7 +112,6 @@ router.get("/user/rooms/:id", async (req, res) => {
               const r = await Room.findById(u.rooms[i]);
               tab.push(u);
             }
-
             return res.status(200).json(tab);
 
           } else return res.status(404).json({ error: "This user has no room" });
@@ -249,9 +247,9 @@ router.put("/user/upload_picture/:id", isAuthenticated, async (req, res) => {
             const u = await User.findById(req.params.id);
             if (u) {
               if (u.token === req.user.token) {
-
+          
                 //si existe, supprimer de cloudinary avant de remplacer
-                if (u.account.picture !== null) await cloudinary.uploader.destroy(u.account.picture.public_id); 
+                //if (u.account.picture !== null) await cloudinary.uploader.destroy(u.account.picture.public_id); 
                 
                 let objPic = {};
                 const res_cloudi = await cloudinary.v2.uploader.upload(req.files.picture.path); //document picture de type Object dans notre modèle User
@@ -318,7 +316,7 @@ router.delete("/user/delete/:id", isAuthenticated, async (req, res) => {
                 await Room.findByIdAndRemove(r[i].id);
               }
               await User.findByIdAndRemove(req.params.id);
-              res.status(200).json({ message: "User deleted" });
+              return res.status(200).json({ message: "User deleted" });
               
             } else return res.status(401).json({ error: "User unauthorized" });
           } else return res.status(404).json({ error: "User not found" });
